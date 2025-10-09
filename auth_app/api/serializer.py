@@ -6,7 +6,28 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 User = get_user_model()
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for registering new users.
 
+    Responsibilities
+    ----------------
+    - Validates input and creates a new user.
+    - Enforces a case-insensitive unique email.
+    - Validates the password using Django's configured password validators.
+    - Uses `User.objects.create_user(...)` so the password is hashed and defaults are set.
+
+    Fields
+    ------
+    - username: str, required
+    - email: str, required, unique (case-insensitive), stored lowercased
+    - password: str, write_only, validated but never returned
+
+    Notes
+    -----
+    - Email is trimmed and lowercased to avoid duplicates caused by
+      whitespace/casing differences.
+    - Creation runs inside a DB transaction.
+    """
     class Meta:
         """Serializer for user registration, handling username, email, and password."""
         model = User
@@ -36,6 +57,23 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return account
     
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+     """
+    Obtain JWT tokens by authenticating with email + password
+    instead of username + password.
+
+    Behavior
+    --------
+    - Accepts `email` and `password`.
+    - Resolves the user by `email` (case-insensitive).
+    - Injects the resolved `username` into `attrs` so the parent
+      serializer (`TokenObtainPairSerializer`) can proceed normally.
+
+    Security
+    --------
+    - Returns a generic error for invalid credentials to avoid
+      leaking which field failed.
+    - Optionally checks `is_active` (uncomment if desired).
+    """
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 

@@ -11,6 +11,16 @@ from .serializers import RegistrationSerializer, CustomTokenObtainPairSerializer
 user = get_user_model()
 
 class RegistrationView(APIView):
+    """
+    Register a new user.
+
+    POST
+    ----
+    - Validates payload with `RegistrationSerializer`.
+    - Creates the user and returns a success message.
+    - Does NOT return password (or hash) in the response.
+    """
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -31,6 +41,12 @@ class RegistrationView(APIView):
         
     
 class CookieTokenObtainView(TokenObtainPairView):
+    """
+    Obtain JWT tokens (username+password or email+password depending on serializer)
+    and set them as HttpOnly cookies. Keeps tokens out of the response body.
+    """
+    # If you want email+password here, set:
+    # serializer_class = CustomTokenObtainPairSerializer
     def post(self, request, *args, **kwargs):
         """Obtain JWT tokens and set them as cookies."""
         serializer = self.get_serializer(data=request.data)
@@ -71,6 +87,16 @@ class CookieTokenObtainView(TokenObtainPairView):
         return response
     
 class CookieRefreshView(TokenRefreshView):
+    """
+    Refresh access token using the refresh token stored in cookies.
+
+    POST
+    ----
+    - Reads `refresh_token` cookie.
+    - Validates via `TokenRefreshView` serializer.
+    - Sets a new access token cookie.
+    - Does NOT return the token in the body.
+    """
     def post(self, request, *args, **kwargs):
         """Refresh the access token using the refresh token stored in cookies."""
         refresh_token = request.COOKIES.get("refresh_token")
@@ -105,6 +131,10 @@ class CookieRefreshView(TokenRefreshView):
         return response
     
 class CookieTokenObtainPairView(TokenObtainPairView):
+    """
+    Obtain JWT tokens using the custom (email+password) serializer and store them
+    in HttpOnly cookies.
+    """
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
@@ -137,6 +167,15 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         return response
     
 class TokenBlacklistView(APIView):
+    """
+    Blacklist the refresh token (log out) and clear both token cookies.
+
+    Notes
+    -----
+    - Requires an authenticated request (valid access token).
+    - If you authenticate via cookies, make sure your authentication class
+      reads the access token from the cookie (e.g., custom auth).
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
