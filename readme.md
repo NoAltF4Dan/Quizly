@@ -10,13 +10,14 @@ Find the frontend here: [Quizly Frontend Repository](https://github.com/NoAltF4D
 
 The Quizly backend provides the following core features:
 
-- **Quiz Generation**: Create quizzes based on YouTube video URLs.
-- **Question Answering**: Users can answer questions generated from a video.
+- **AI-Powered Quiz Generation**: Automatically creates quizzes from YouTube videos using the Gemini API for content analysis.
+- **Question Answering**: Users can answer questions generated from Gemini API.
 - **Result Storage**: Save quiz results for later reference.
 
 ## Getting Started
 
 Follow this guide to set up a local development environment for the project.
+### make sure to generate api key and setup in ur api key in settings.py GEMINI_API_KEY = env("GEMINI_API_KEY")
 
 ### Prerequisites
 
