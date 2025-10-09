@@ -121,7 +121,7 @@ The exact routes and functionality are defined in the corresponding views and se
 ## Credits
 
 - **Frontend**: Developer Akademie for providing the frontend.
-- **Backend**: Built by Henrik Petersen.
+- **Backend**: Built by Daniel K.
 
 ## License
 
