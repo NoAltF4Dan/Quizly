@@ -1,3 +1,13 @@
+"""
+List/create quizzes API tests (concise).
+
+Covers
+------
+- Auth: cookie-based login via `login-view`.
+- GET /quizzes: returns 200 and list payload.
+- POST /quizzes: valid URL -> 201 + expected fields.
+"""
+
 import pytest
 from django.urls import reverse
 from django.contrib.auth.models import User
