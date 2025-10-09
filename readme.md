@@ -4,7 +4,7 @@
 
 Quizly is an innovative, AI API-based backend for an interactive quiz application, leveraging Django and Django REST Framework. Powered by advanced AI, it enables users to create, take, and manage quizzes with a standout feature: automatic quiz generation from YouTube videos using AI-driven content analysis. The API supports seamless question creation, user answer submission, and result tracking, making it perfect for educational platforms, trivia apps, or personalized learning tools.
 
-Find the frontend here: [Quizly Frontend Repository](https://github.com/NoAltF4Dan/Quizly-Frontend.git)
+Find the frontend here: [Quizly Frontend Repository](https://github.com/NoAltF4Dan/Quizly_Frontend.git)
 
 ## Features
 
