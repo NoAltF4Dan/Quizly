@@ -1,8 +1,28 @@
+"""
+Register API tests (concise).
+
+Covers
+------
+- Success: creates user -> 201 + success detail.
+- Conflicts/validation:
+  - existing username -> 400 with 'username' error
+  - invalid email -> 400 with 'email' error
+  - missing fields (e.g., email/password) -> 400
+  - email already taken -> 400 with 'email' error
+
+Fixtures
+--------
+- user: pre-existing user (username/email collisions).
+- register_url: reverse('register-view').
+- api_client: DRF API client.
+"""
+
 import pytest
 from django.urls import reverse
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APIClient
+
 
 @pytest.fixture
 def user():
