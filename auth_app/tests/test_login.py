@@ -1,3 +1,20 @@
+ChatGPT:
+"""
+Login API tests (concise).
+
+Covers
+------
+- Success: valid credentials -> 200, sets access/refresh cookies, returns user payload.
+- Auth failures: wrong username or password -> 401, no cookies.
+- Validation: missing username/password or empty body -> 400 with field errors.
+
+Fixtures
+--------
+- create_user: helper to create test users.
+- login_url: reverse('login-view').
+- user_data: default login payload.
+"""
+
 import pytest
 from django.contrib.auth.models import User
 from django.urls import reverse
