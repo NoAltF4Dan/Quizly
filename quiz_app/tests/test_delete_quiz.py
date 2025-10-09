@@ -1,3 +1,18 @@
+"""
+Delete-quiz API tests (concise).
+
+Covers
+------
+- Success: owner can delete -> 204 and DB record removed.
+- Auth: unauthenticated -> 401; non-owner -> 403.
+- Existence: deleting missing quiz -> 404.
+
+Fixtures
+--------
+- owner: test user owning the quiz.
+- quiz: quiz instance linked to owner.
+- api_client: DRF API client.
+"""
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
