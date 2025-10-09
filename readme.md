@@ -27,7 +27,7 @@ Make sure you have Python 3.13.3 (or newer) and pip installed on your system.
 Clone the repository:
 
 ```bash
-git clone https://github.com/HPetersen2/Quizly-Backend.git
+git clone https://github.com/NoAltF4Dan/Quizly-Backend.git
 cd Quizly-Backend
 ```
 
