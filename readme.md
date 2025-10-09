@@ -4,7 +4,7 @@
 
 Quizly is an interactive quiz application that allows users to create, take, and manage quizzes. The backend for this application enables quiz generation from YouTube videos, question answering, and storing results. This project is developed using Django and Django REST Framework.
 
-Find the frontend here: [Quizly Frontend Repository](https://github.com/HPetersen2/Quizly-Frontend.git)
+Find the frontend here: [Quizly Frontend Repository](https://github.com/NoAltF4Dan/Quizly-Frontend.git)
 
 ## Features
 
