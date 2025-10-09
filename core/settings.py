@@ -34,9 +34,6 @@ DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
-    'api.quizly.henrik-petersen.de',
-    'quizly.henrik-petersen.de',
-    'wwww.quizly.henrik-petersen.de',
 ]
 
 
