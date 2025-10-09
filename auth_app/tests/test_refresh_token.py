@@ -1,3 +1,18 @@
+"""
+Refresh-token API tests (concise).
+
+Covers
+------
+- Success: refresh with valid cookies -> new access token issued.
+- Missing cookie: no access/refresh cookie -> 400/401.
+- Invalid refresh: bogus refresh cookie -> 401.
+
+Fixtures
+--------
+- user, api_client, login_user: helper setup for authenticated client.
+- refresh_url: reverse('token-refresh').
+"""
+
 import pytest
 from django.urls import reverse
 from django.contrib.auth.models import User
