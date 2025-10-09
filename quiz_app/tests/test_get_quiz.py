@@ -1,3 +1,14 @@
+"""
+Get-quiz API tests (concise).
+
+Covers
+------
+- Success: owner can fetch -> 200 + expected fields.
+- Auth: unauthenticated -> 401; non-owner -> 403.
+- Existence: missing quiz -> 404.
+- Error path: demonstrates server-error expectation case.
+"""
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
