@@ -17,7 +17,6 @@ The Quizly backend provides the following core features:
 ## Getting Started
 
 Follow this guide to set up a local development environment for the project.
-### make sure to generate api key and setup in ur api key in settings.py GEMINI_API_KEY = env("GEMINI_API_KEY")
 
 ### Prerequisites
 
@@ -58,11 +57,15 @@ pip install -r requirements.txt
 
 Create a .env file in the project root and add your Gemini API Key:
 
+Generate a Gemini API Key: Visit Google AI Studio to create your Gemini API key.
+https://aistudio.google.com/api-keys
+
 ```bash
-SECRET_KEY=your_django_secret_key_here
+SECRET_KEY=your-secret-key-here
 DEBUG=True
-GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
+
 
 Run the database migrations:
 
