@@ -1,3 +1,14 @@
+"""
+Smoke tests for quiz creation API.
+
+What this covers
+----------------
+- Auth: requires cookie-based login.
+- Happy path: valid YouTube URL -> 201 + expected fields.
+- Errors: invalid/malformed/empty URL -> 400; no login -> 401.
+- Robustness: POST helper retries on transient timeouts.
+"""
+
 import pytest
 import time
 from django.urls import reverse
