@@ -1,3 +1,19 @@
+"""
+Logout API tests (concise).
+
+Covers
+------
+- Success: valid access token -> 200 with success detail; token becomes unusable (subsequent request -> 401).
+- Failure: invalid token on logout -> 401.
+
+Fixtures
+--------
+- user: test user.
+- api_client: DRF API client.
+- login_user: logs in, stores access token cookie, returns (client, token).
+- logout_url: reverse('token-blacklist').
+"""
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
