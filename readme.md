@@ -60,10 +60,14 @@ Create a .env file in the project root and add your Gemini API Key:
 Generate a Gemini API Key: Visit Google AI Studio to create your Gemini API key.
 https://aistudio.google.com/api-keys
 
+change in settings.py
+```bash
+GEMINI_API_KEY=your-gemini-api-key-here
+```
+
 ```bash
 SECRET_KEY=your-secret-key-here
 DEBUG=True
-GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 
