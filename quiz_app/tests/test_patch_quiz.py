@@ -1,3 +1,15 @@
+"""
+Patch-quiz API tests (concise).
+
+Covers
+------
+- Success: owner partial update -> 200 + fields intact.
+- Validation: empty title -> 400 with field errors.
+- AuthZ: unauthenticated -> 401; non-owner -> 403.
+- Existence: missing quiz -> 404.
+- Error path: server-error expectation demo.
+"""
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
