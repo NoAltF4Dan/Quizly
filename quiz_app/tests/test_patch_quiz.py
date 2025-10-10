@@ -1,108 +1,94 @@
-"""
-Patch-quiz API tests (concise).
+'''API tests for partially updating a quiz (PATCH).
 
-Covers
-------
-- Success: owner partial update -> 200 + fields intact.
-- Validation: empty title -> 400 with field errors.
-- AuthZ: unauthenticated -> 401; non-owner -> 403.
-- Existence: missing quiz -> 404.
-- Error path: server-error expectation demo.
-"""
+Covers:
+- 401 when unauthenticated.
+- 403 when the requester is not the owner.
+- 404 when the quiz id does not exist.
+- 200 when updating a subset of fields (e.g., title only).
+- Normalization of 'video_url' to canonical YouTube form.
+- 400 when payload is empty or URL is invalid.
 
-import pytest
-from rest_framework import status
-from rest_framework.test import APIClient
+Notes:
+- Uses the detail endpoint: PATCH /api/quizzes/<id>/.
+- Questions should remain unchanged after metadata updates.
+'''
+
 from django.contrib.auth.models import User
-from quiz_app.models import Quiz
+from django.urls import reverse
+from rest_framework.test import APITestCase
+from rest_framework import status
+from quiz_app.models import Quiz, Question
 
-@pytest.fixture
-def user():
-    """Creates and returns a test user."""
-    owner = User.objects.create_user(username="testuser", password="testpassword")
-    return owner
+class QuizPatchTests(APITestCase):
+    '''Tests for PATCH /api/quizzes/<id>/.'''
 
-@pytest.fixture
-def quiz(user):
-    """Creates and returns a test quiz associated with a user."""
-    quiz = Quiz.objects.create(
-        title="Test Quiz",
-        description="This is a test quiz.",
-        owner=user
-    )
-    return quiz
+    def setUp(self):
+        '''Create two users and a quiz owned by the first user.'''
 
-@pytest.fixture
-def api_client():
-    """Returns an instance of APIClient for testing."""
-    return APIClient()
+        self.owner = User.objects.create_user(username='u1', password='Abc123', email='u1@x.com')
+        self.other = User.objects.create_user(username='u2', password='Abc123', email='u2@x.com')
+        self.quiz = Quiz.objects.create(
+            owner=self.owner,
+            title='Old Title',
+            description='Old Desc',
+            video_url='https://www.youtube.com/watch?v=AAAAAAAAAAA',
+        )
+        Question.objects.create(
+            quiz=self.quiz,
+            question_title='Q1',
+            question_options=['A','B','C','D'],
+            answer='A',
+        )
+        self.url = reverse('api-quiz-detail', kwargs={'id': self.quiz.id})
 
-@pytest.mark.django_db
-def test_patch_quiz_success(api_client, quiz, user):
-    """Tests successful quiz update with valid data."""
-    api_client.force_authenticate(user=user)
+    def test_requires_auth(self):
+        '''Unauthenticated requests must return 401.'''
 
-    updated_data = {"title": "Partially Updated Title"}
+        resp = self.client.patch(self.url, {'title': 'X'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    response = api_client.patch(f"/api/quizzes/{quiz.id}/", updated_data)
+    def test_forbidden_for_non_owner(self):
+        '''A different authenticated user must receive 403.'''
 
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data["id"] == quiz.id
-    assert response.data["title"] == "Partially Updated Title"
-    assert response.data["description"] == quiz.description
+        self.client.force_authenticate(self.other)
+        resp = self.client.patch(self.url, {'title': 'X'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
-@pytest.mark.django_db
-def test_patch_quiz_invalid_data(api_client, quiz, user):
-    """Tests quiz update with invalid data (empty title)."""
-    api_client.force_authenticate(user=user)
+    def test_404_if_not_found(self):
+        '''Patching a non-existent quiz returns 404.'''
 
-    invalid_data = {"title": ""}
+        self.client.force_authenticate(self.owner)
+        resp = self.client.patch(reverse('api-quiz-detail', kwargs={'id': 999}),
+                                 {'title': 'X'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
-    response = api_client.patch(f"/api/quizzes/{quiz.id}/", invalid_data)
+    def test_patch_title_only(self):
+        '''Owner can patch only the title; questions remain intact.'''
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "title" in response.data
+        self.client.force_authenticate(self.owner)
+        resp = self.client.patch(self.url, {'title': 'Partially Updated'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['title'], 'Partially Updated')
+        self.assertEqual(len(resp.data['questions']), 1)
 
-@pytest.mark.django_db
-def test_patch_quiz_unauthenticated(api_client, quiz):
-    """Tests quiz update without authentication."""
-    updated_data = {"title": "Unauthenticated Update"}
+    def test_patch_video_url_normalizes(self):
+        '''Video URL is normalized to canonical YouTube watch form.'''
 
-    response = api_client.patch(f"/api/quizzes/{quiz.id}/", updated_data)
+        self.client.force_authenticate(self.owner)
+        resp = self.client.patch(self.url, {'video_url': 'https://youtu.be/BBBBBBBBBBB'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['video_url'], 'https://www.youtube.com/watch?v=BBBBBBBBBBB')
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    def test_patch_empty_body_returns_400(self):
+        '''Empty payload should yield 400 Bad Request.'''
 
-@pytest.mark.django_db
-def test_patch_quiz_forbidden(api_client, quiz, user):
-    """Tests quiz update by a user who is not the owner."""
-    another_user = User.objects.create_user(username="anotheruser", password="password")
+        self.client.force_authenticate(self.owner)
+        resp = self.client.patch(self.url, {}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-    api_client.force_authenticate(user=another_user)
-
-    updated_data = {"title": "Unauthorized Update"}
-
-    response = api_client.patch(f"/api/quizzes/{quiz.id}/", updated_data)
-
-    assert response.status_code == status.HTTP_403_FORBIDDEN
-
-@pytest.mark.django_db
-def test_patch_quiz_not_found(api_client, user):
-    """Tests quiz update for a non-existent quiz."""
-    api_client.force_authenticate(user=user)
-
-    updated_data = {"title": "Non-existent Quiz Update"}
-
-    response = api_client.patch("/api/quizzes/999/", updated_data)
-
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-
-@pytest.mark.django_db
-def test_patch_quiz_server_error(api_client, user):
-    """Tests quiz update with a server error simulation."""
-    api_client.force_authenticate(user=user)
-
-    try:
-        response = api_client.patch("/api/quizzes/1/", {"title": "Server Error Update"})
-        assert False, "Expected exception but none was raised"
-    except Exception:
-        pass
+    def test_patch_invalid_url_returns_400(self):
+        '''Malformed URL in payload should yield 400 Bad Request.'''
+        
+        self.client.force_authenticate(self.owner)
+        resp = self.client.patch(self.url, {'video_url': 'not-a-url'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)

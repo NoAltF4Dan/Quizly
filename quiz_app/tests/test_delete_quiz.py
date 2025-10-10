@@ -1,81 +1,69 @@
-"""
-Delete-quiz API tests (concise).
+'''API tests for deleting a quiz.
 
-Covers
-------
-- Success: owner can delete -> 204 and DB record removed.
-- Auth: unauthenticated -> 401; non-owner -> 403.
-- Existence: deleting missing quiz -> 404.
+Covers:
+- 401 when unauthenticated.
+- 403 when the requester is not the owner.
+- 404 when the quiz id does not exist.
+- 204 and cascade delete of related questions on successful deletion.
 
-Fixtures
---------
-- owner: test user owning the quiz.
-- quiz: quiz instance linked to owner.
-- api_client: DRF API client.
-"""
-import pytest
-from rest_framework import status
-from rest_framework.test import APIClient
-from unittest import mock
+Notes:
+- Uses the detail endpoint: DELETE /api/quizzes/<id>/.
+- Questions are expected to be removed via FK(on_delete=CASCADE).
+'''
+
 from django.contrib.auth.models import User
-from quiz_app.models import Quiz
+from django.urls import reverse
+from rest_framework.test import APITestCase
+from rest_framework import status
+from quiz_app.models import Quiz, Question
 
-@pytest.fixture
-def owner():
-    """Fixture to create a test owner (user)."""
-    owner = User.objects.create_user(username="owneruser", password="ownerpassword")
-    return owner
+class QuizDeleteTests(APITestCase):
+    '''Tests for DELETE /api/quizzes/<id>/.'''
 
-@pytest.fixture
-def quiz(owner):
-    """Fixture to create a test quiz associated with an owner."""
-    quiz = Quiz.objects.create(
-        title="Test Quiz",
-        description="This is a test quiz.",
-        owner=owner
-    )
-    return quiz
+    def setUp(self):
+        '''Create two users and one quiz with a single question.'''
 
-@pytest.fixture
-def api_client():
-    """Fixture to return an instance of APIClient."""
-    return APIClient()
+        self.owner = User.objects.create_user(username='u1', password='Abc123', email='u1@x.com')
+        self.other = User.objects.create_user(username='u2', password='Abc123', email='u2@x.com')
+        self.quiz = Quiz.objects.create(
+            owner=self.owner,
+            title='Del Me',
+            description='desc',
+            video_url='https://www.youtube.com/watch?v=AAAAAAAAAAA',
+        )
+        Question.objects.create(
+            quiz=self.quiz,
+            question_title='Q1',
+            question_options=['A','B','C','D'],
+            answer='A',
+        )
+        self.url = reverse('api-quiz-detail', kwargs={'id': self.quiz.id})
 
-@pytest.mark.django_db
-def test_delete_quiz_success(api_client, quiz, owner):
-    """Test successful deletion of a quiz by the owner."""
-    api_client.force_authenticate(user=owner)
+    def test_requires_auth(self):
+        '''Unauthenticated requests must return 401.'''
 
-    response = api_client.delete(f"/api/quizzes/{quiz.id}/")
+        resp = self.client.delete(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    assert response.status_code == status.HTTP_204_NO_CONTENT
+    def test_forbidden_for_non_owner(self):
+        '''A different authenticated user must receive 403.'''
 
-    with pytest.raises(Quiz.DoesNotExist):
-        Quiz.objects.get(id=quiz.id)
+        self.client.force_authenticate(self.other)
+        resp = self.client.delete(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
-@pytest.mark.django_db
-def test_delete_quiz_unauthenticated(api_client, quiz):
-    """Test deleting a quiz without authentication."""
-    response = api_client.delete(f"/api/quizzes/{quiz.id}/")
+    def test_404_if_not_found(self):
+        '''Deleting a non-existent quiz returns 404.'''
 
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        self.client.force_authenticate(self.owner)
+        resp = self.client.delete(reverse('api-quiz-detail', kwargs={'id': 999}))
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
 
-@pytest.mark.django_db
-def test_delete_quiz_forbidden(api_client, quiz, owner):
-    """Test deleting a quiz by a user who is not the owner."""
-    another_user = User.objects.create_user(username="anotheruser", password="password")
-
-    api_client.force_authenticate(user=another_user)
-
-    response = api_client.delete(f"/api/quizzes/{quiz.id}/")
-
-    assert response.status_code == status.HTTP_403_FORBIDDEN
-
-@pytest.mark.django_db
-def test_delete_quiz_not_found(api_client, owner):
-    """Test deleting a non-existent quiz."""
-    api_client.force_authenticate(user=owner)
-
-    response = api_client.delete("/api/quizzes/999/")
-
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    def test_delete_success_204_and_cascade(self):
+        '''Owner can delete; response is 204 and related questions are removed.'''
+        
+        self.client.force_authenticate(self.owner)
+        resp = self.client.delete(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Quiz.objects.filter(id=self.quiz.id).exists())
+        self.assertEqual(Question.objects.filter(quiz_id=self.quiz.id).count(), 0)

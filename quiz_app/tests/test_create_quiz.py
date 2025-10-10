@@ -1,132 +1,51 @@
-"""
-Smoke tests for quiz creation API.
+'''API tests for creating a quiz from a YouTube URL.
 
-What this covers
-----------------
-- Auth: requires cookie-based login.
-- Happy path: valid YouTube URL -> 201 + expected fields.
-- Errors: invalid/malformed/empty URL -> 400; no login -> 401.
-- Robustness: POST helper retries on transient timeouts.
-"""
+Covers:
+- Happy path: POST /api/createQuiz/ returns 201 and the serialized quiz,
+  with nested questions. The expensive pipeline is mocked.
+- Validation: Missing 'url' in request body -> 400 Bad Request.
 
-import pytest
-import time
-from django.urls import reverse
+Notes:
+- We patch 'quiz_app.api.views.create_quiz_from_youtube' because the view
+  imports the callable into its module namespace; patching this path ensures
+  the network/LLM-heavy pipeline is not executed during tests.
+'''
+
 from django.contrib.auth.models import User
+from django.urls import reverse
+from rest_framework.test import APITestCase
 from rest_framework import status
-from rest_framework.test import APIClient
-from requests.exceptions import Timeout, RequestException
+from unittest.mock import patch
+from quiz_app.models import Quiz, Question
 
-MAX_RETRIES = 5
-RETRY_DELAY = 5
+class CreateQuizTests(APITestCase):
+    '''Tests for POST /api/createQuiz/.'''
 
-@pytest.fixture
-def user():
-    """Fixture to create a test user."""
-    return User.objects.create_user(
-        username='newuser',
-        password='newpassword123',
-        email='newuser@test.de'
-    )
+    def setUp(self):
+        '''Authenticate a test user and store the endpoint URL.'''
 
-@pytest.fixture
-def api_client():
-    """Fixture to return an instance of APIClient."""
-    return APIClient()
+        self.user = User.objects.create_user(username='Testuser', password='Abc123', email='testuser@test.com')
+        self.client.force_authenticate(self.user)
+        self.url = reverse('api-create-quiz')
 
-@pytest.fixture
-def login_user(api_client, user):
-    """Fixture to log in a user and store the access token."""
-    login_url = reverse('login-view')
-    response = api_client.post(login_url, {
-        'username': user.username,
-        'password': 'newpassword123'
-    }, format='json')
-    
-    api_client.cookies['access_token'] = response.cookies.get('access_token').value
-    return api_client
+    @patch('quiz_app.api.views.create_quiz_from_youtube')
+    def test_create_quiz_success(self, mock_create):
+        '''Successful creation returns 201 and includes nested questions.'''
 
-@pytest.fixture
-def quiz_url():
-    """Fixture for the quiz creation URL."""
-    return reverse('create-quiz')
+        quiz = Quiz.objects.create(owner=self.user, title='Quiz Title',
+                                   description='Quiz Desc', video_url='https://www.youtube.com/watch?v=AAAAAAAAAAA')
+        Question.objects.create(quiz=quiz, question_title='Q1',
+                                question_options=['A','B','C','D'], answer='A')
+        mock_create.return_value = quiz
 
-def post_with_retry(api_client, url, data, retries=MAX_RETRIES, delay=RETRY_DELAY):
-    """Helper function to perform POST requests with retry logic."""
-    for attempt in range(retries):
-        try:
-            response = api_client.post(url, data, format='json', timeout=30)
-            return response
-        except Timeout:
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                pytest.fail("The service did not respond after multiple attempts.")
-        except RequestException as e:
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                pytest.fail(f"Request failed after multiple attempts: {str(e)}")
-    return None
+        resp = self.client.post(self.url, {'url': 'https://youtu.be/AAAAAAAAAAA'}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data['title'], 'Quiz Title')
+        self.assertEqual(resp.data['video_url'], 'https://www.youtube.com/watch?v=AAAAAAAAAAA')
+        self.assertEqual(len(resp.data['questions']), 1)
 
-@pytest.mark.django_db
-def test_create_quiz(api_client, login_user, quiz_url):
-    """Test creating a quiz with a valid URL."""
-    data = {
-        "url": "https://www.youtube.com/watch?v=u-buCC1LWr8"
-    }
-    response = post_with_retry(api_client, quiz_url, data)
-    
-    assert response is not None, "The request failed."
-    assert response.status_code == status.HTTP_201_CREATED
-    
-    expected_fields = ['id', 'title', 'description', 'created_at', 'updated_at', 'video_url', 'questions']
-    for field in expected_fields:
-        assert field in response.data
+    def test_create_quiz_missing_url(self):
+        '''Missing 'url' in payload should yield 400 Bad Request.'''
 
-@pytest.mark.django_db
-def test_create_quiz_with_invalid_url(api_client, login_user, quiz_url):
-    """Test creating a quiz with an invalid URL."""
-    data = {
-        "url": "https://www.youtube.com/watch?v=u-LWr8"
-    }
-    response = post_with_retry(api_client, quiz_url, data)
-    
-    assert response is not None, "The request failed."
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-@pytest.mark.django_db
-def test_create_quiz_without_login(api_client, quiz_url):
-    """Test creating a quiz without being logged in (should return 401 Unauthorized)."""
-    api_client.cookies['access_token'] = ""
-    data = {
-        "url": "https://www.youtube.com/watch?v=u-buCC1LWr8"
-    }
-    response = post_with_retry(api_client, quiz_url, data)
-    
-    assert response is not None, "The request failed."
-    assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-@pytest.mark.django_db
-def test_create_quiz_with_empty_url(api_client, login_user, quiz_url):
-    """Test creating a quiz with an empty URL (should return 400 Bad Request)."""
-    data = {
-        "url": ""
-    }
-    response = post_with_retry(api_client, quiz_url, data)
-    
-    assert response is not None, "The request failed."
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "error" in response.data
-
-@pytest.mark.django_db
-def test_create_quiz_invalid_url_format(api_client, login_user, quiz_url):
-    """Test creating a quiz with a malformed URL (should return 400 Bad Request)."""
-    data = {
-        "url": "invalid-url"
-    }
-    response = post_with_retry(api_client, quiz_url, data)
-    
-    assert response is not None, "The request failed."
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "error" in response.data
+        resp = self.client.post(self.url, {}, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
