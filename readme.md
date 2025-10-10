@@ -24,23 +24,20 @@ Make sure you have Python 3.13.3 (or newer) and pip installed on your system.
 
 ### Installation
 
-Clone the repository:
+1. Clone the repository:
 
 ```bash
 git clone https://github.com/NoAltF4Dan/Quizly-Backend.git
 cd Quizly-Backend
 ```
 
-Create a virtual environment and activate it:
+2. Create a virtual environment and activate it:
 
 ```bash
 python -m venv env
 ```
-
-On macOS/Linux:
-
 ```bash
-source env/bin/activate
+source env/bin/activate   # macOS/Linux
 ```
 
 On Windows:
@@ -55,23 +52,20 @@ Install the dependencies:
 pip install -r requirements.txt
 ```
 
-Create a .env file in the project root and add your Gemini API Key:
+3. Create a Gemini API key and configure environment
 
 Generate a Gemini API Key: Visit Google AI Studio to create your Gemini API key.
 https://aistudio.google.com/api-keys
 
-change in settings.py
-```bash
-GEMINI_API_KEY=your-gemini-api-key-here
-```
 
 ```bash
-SECRET_KEY=your-secret-key-here
-DEBUG=True
+cp -n .env.template .env
 ```
 
+change:
+GEMINI_API_KEY=YOUR_GOOGLE_GEMINI_API_KEY
 
-Run the database migrations:
+4. Run the database migrations:
 
 ```bash
 python manage.py migrate
